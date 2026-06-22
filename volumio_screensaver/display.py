@@ -34,7 +34,9 @@ class ClockDisplay:
         )
         self._disp.begin()
         self._font = self._load_font(config.font_path, config.font_size)
-        self.clear(backlight_on=False)
+        # Do not clear the display at service startup. Volumio/Pirate Audio may
+        # already be using the ST7789 screen, and the screen saver should only
+        # take over once the idle delay has elapsed.
 
     @property
     def width(self) -> int:
