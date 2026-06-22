@@ -1,0 +1,15 @@
+[Unit]
+Description=Volumio Pirate Audio screen saver
+After=network-online.target volumio.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=-/etc/volumio-screensaver.env
+ExecStart=/opt/volumio-screensaver/venv/bin/volumio-screensaver
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
