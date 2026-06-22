@@ -31,7 +31,11 @@ class ScreenSaver:
         )
 
     def run(self) -> int:
-        self._buttons.start()
+        try:
+            self._buttons.start()
+        except Exception as exc:
+            LOGGER.warning("Buttons disabled because GPIO edge detection failed: %s", exc)
+
         current_playing: bool | None = None
         next_poll = 0.0
         idle_since: float | None = None
@@ -48,7 +52,7 @@ class ScreenSaver:
                 if self._button_pressed.is_set():
                     self._button_pressed.clear()
                     idle_since = now_monotonic
-                    if not blanked:
+                    if active:
                         self._display.clear(backlight_on=False)
                         blanked = True
                     active = False
@@ -66,11 +70,12 @@ class ScreenSaver:
 
                 if current_playing is True:
                     if active:
-                        LOGGER.info("Volumio is playing, hiding screen saver")
-                    if not blanked:
-                        self._display.clear(backlight_on=False)
-                        blanked = True
+                        LOGGER.info("Volumio is playing, leaving display to Pirate Audio")
+                    # Do not clear the display while music is playing. The Pirate Audio
+                    # plugin may already own the ST7789 screen and should be allowed to
+                    # redraw it instead of receiving a forced black frame from us.
                     active = False
+                    blanked = True
                     last_text = None
                     last_minute = None
                     position = None
@@ -83,7 +88,6 @@ class ScreenSaver:
                     if idle_elapsed < self._config.idle_delay_seconds:
                         if active:
                             LOGGER.info("Music idle delay reset, hiding screen saver")
-                        if not blanked:
                             self._display.clear(backlight_on=False)
                             blanked = True
                         active = False
@@ -115,7 +119,6 @@ class ScreenSaver:
                 else:
                     if active:
                         LOGGER.info("Volumio state unknown, hiding screen saver")
-                    if not blanked:
                         self._display.clear(backlight_on=False)
                         blanked = True
                     active = False
@@ -124,7 +127,8 @@ class ScreenSaver:
 
                 self._stop.wait(0.25)
         finally:
-            self._display.clear(backlight_on=False)
+            # Do not blank the display on shutdown; the Volumio/Pirate Audio plugin
+            # can redraw the screen when it regains control.
             self._buttons.stop()
 
         return 0
