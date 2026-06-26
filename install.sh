@@ -11,8 +11,8 @@ if [[ "${EUID}" -ne 0 ]]; then
   exec sudo -E bash "$0" "$@"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_DIR=""
+SOURCE_DIR=""
 
 cleanup() {
   if [[ -n "${TMP_DIR}" && -d "${TMP_DIR}" ]]; then
@@ -40,9 +40,14 @@ if ! apt-get install -y python3-rpi.gpio; then
   RPI_GPIO_FROM_PIP=1
 fi
 
-if [[ -d "${SCRIPT_DIR}/volumio_screensaver" ]]; then
-  SOURCE_DIR="${SCRIPT_DIR}"
-else
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -d "${SCRIPT_DIR}/volumio_screensaver" ]]; then
+    SOURCE_DIR="${SCRIPT_DIR}"
+  fi
+fi
+
+if [[ -z "${SOURCE_DIR}" ]]; then
   TMP_DIR="$(mktemp -d)"
   git clone --depth=1 "${REPO_URL}" "${TMP_DIR}"
   SOURCE_DIR="${TMP_DIR}"
@@ -51,7 +56,7 @@ fi
 mkdir -p "${APP_DIR}"
 python3 -m venv --system-site-packages "${APP_DIR}/venv"
 "${APP_DIR}/venv/bin/python" -m pip install --upgrade pip setuptools wheel
-"${APP_DIR}/venv/bin/python" -m pip install "${SOURCE_DIR}"
+"${APP_DIR}/venv/bin/python" -m pip install --no-cache-dir --force-reinstall "${SOURCE_DIR}"
 
 if [[ "${RPI_GPIO_FROM_PIP}" -eq 1 ]]; then
   "${APP_DIR}/venv/bin/python" -m pip install RPi.GPIO
@@ -69,5 +74,6 @@ systemctl restart "${APP_NAME}.service"
 
 echo
 echo "Installation terminee."
+echo "Source installee : ${SOURCE_DIR}"
 echo "Etat du service : sudo systemctl status ${APP_NAME}"
 echo "Logs en direct  : sudo journalctl -u ${APP_NAME} -f"
