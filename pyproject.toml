@@ -20,4 +20,4 @@ volumio-screensaver = "volumio_screensaver.main:main"
 include = ["volumio_screensaver*"]
 
 [tool.setuptools.package-data]
-volumio_screensaver = ["*.ttf", "*.TTF", "*.otf", "*.OTF"]
+volumio_screensaver = ["fonts/*.ttf", "fonts/*.TTF", "fonts/*.otf", "fonts/*.OTF"]
