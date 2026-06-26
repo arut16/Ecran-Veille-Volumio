@@ -8,8 +8,8 @@ Il affiche l'heure au format 24 h sur l'ecran ST7789 240x240. Les deux points cl
 
 - L'ecran de veille s'active apres 5 minutes sans musique (`status` different de `play`).
 - Il se masque automatiquement quand la musique demarre depuis l'interface Web Volumio.
-- Un appui sur un des 4 boutons du HAT masque l'horloge et relance le delai de 5 minutes.
-- Les boutons sont lus en BCM `5,6,16,24` par defaut. Les anciennes cartes Pirate Audio utilisaient parfois `20` pour le bouton Y.
+- Par defaut, le service ne lit plus les 4 boutons du HAT afin de ne pas entrer en conflit avec le plugin Pirate Audio/Volumio qui les utilise deja.
+- Si tu veux quand meme qu'un appui masque l'horloge et relance le delai de 5 minutes, active `BUTTONS_ENABLED=true`. Les boutons sont alors lus en BCM `5,6,16,24` par defaut. Les anciennes cartes Pirate Audio utilisaient parfois `20` pour le bouton Y.
 
 ## Installation depuis SSH
 
@@ -48,17 +48,21 @@ Les options utiles :
 ```bash
 VOLUMIO_URL=http://127.0.0.1:3000
 IDLE_DELAY_SECONDS=300
+BUTTONS_ENABLED=false
 BUTTON_PINS=5,6,16,24
 FONT_SIZE=58
 DISPLAY_ROTATION=90
 BLANK_TURNS_BACKLIGHT_OFF=true
 ```
 
-Si le bouton Y ne reagit pas :
+Si tu actives les boutons et que le bouton Y ne reagit pas :
 
 ```bash
+BUTTONS_ENABLED=true
 BUTTON_PINS=5,6,16,20
 ```
+
+Si le journal affiche `Failed to add edge detection`, garde `BUTTONS_ENABLED=false` : cela evite que le service manipule les GPIO deja surveilles par Volumio/Pirate Audio, ce qui peut declencher des actions comme volume, menu ou selection.
 
 ## Commandes de service
 

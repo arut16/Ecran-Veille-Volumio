@@ -24,17 +24,28 @@ class ScreenSaver:
         self._rng = random.Random()
         self._display = ClockDisplay(config)
         self._volumio = VolumioClient(config.volumio_url, config.http_timeout_seconds)
-        self._buttons = ButtonWatcher(
-            config.button_pins,
-            on_press=self._on_button_press,
-            bouncetime_ms=config.button_bounce_ms,
-        )
+        self._buttons: ButtonWatcher | None = None
+        if config.buttons_enabled and config.button_pins:
+            self._buttons = ButtonWatcher(
+                config.button_pins,
+                on_press=self._on_button_press,
+                bouncetime_ms=config.button_bounce_ms,
+            )
 
     def run(self) -> int:
-        try:
-            self._buttons.start()
-        except Exception as exc:
-            LOGGER.warning("Buttons disabled because GPIO edge detection failed: %s", exc)
+        if self._buttons is None:
+            LOGGER.info(
+                "Button watching disabled; set BUTTONS_ENABLED=true to enable it"
+            )
+        else:
+            try:
+                self._buttons.start()
+            except Exception as exc:
+                LOGGER.warning(
+                    "Buttons disabled because GPIO edge detection failed: %s", exc
+                )
+                self._buttons.stop()
+                self._buttons = None
 
         current_playing: bool | None = None
         next_poll = 0.0
@@ -70,7 +81,9 @@ class ScreenSaver:
 
                 if current_playing is True:
                     if active:
-                        LOGGER.info("Volumio is playing, leaving display to Pirate Audio")
+                        LOGGER.info(
+                            "Volumio is playing, leaving display to Pirate Audio"
+                        )
                     # Do not clear the display while music is playing. The Pirate Audio
                     # plugin may already own the ST7789 screen and should be allowed to
                     # redraw it instead of receiving a forced black frame from us.
@@ -130,7 +143,8 @@ class ScreenSaver:
         finally:
             # Do not blank the display on shutdown; the Volumio/Pirate Audio plugin
             # can redraw the screen when it regains control.
-            self._buttons.stop()
+            if self._buttons is not None:
+                self._buttons.stop()
 
         return 0
 
