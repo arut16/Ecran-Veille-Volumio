@@ -2,7 +2,7 @@
 
 Ecran de veille Python pour Volumio sur Raspberry Pi Zero 2 W avec Pimoroni Pirate Audio 1W Amp / Audio 1W HAT.
 
-Pour l'instant il affiche uniquement l'heure au format 24 h sur l'ecran ST7789 240x240. Les deux points clignotent chaque seconde et l'heure change de position aleatoirement toutes les minutes.
+Il affiche l'heure au format 24 h sur l'ecran ST7789 240x240. Les deux points clignotent chaque seconde ; l'heure change de position, de police et de couleur aleatoirement toutes les minutes, avec des couleurs suffisamment lumineuses pour rester lisibles sur fond noir.
 
 ## Comportement
 
@@ -26,6 +26,13 @@ curl -fsSL https://raw.githubusercontent.com/arut16/Ecran-Veille-Volumio/main/in
 ```
 
 Le script installe les dependances, copie le service dans `/opt/volumio-screensaver`, cree `/etc/volumio-screensaver.env`, puis active le service `systemd`.
+
+Pour mettre a jour une installation existante depuis PuTTY connecte a Volumio :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/arut16/Ecran-Veille-Volumio/main/install.sh | sudo bash
+```
+
 
 ## Configuration
 
