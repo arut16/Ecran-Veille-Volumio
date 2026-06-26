@@ -100,6 +100,7 @@ class ScreenSaver:
                     current_minute = minute_key(now)
 
                     if position is None or current_minute != last_minute:
+                        self._display.choose_random_style(self._rng)
                         text_width, text_height = self._display.measure("88:88")
                         position = pick_position(
                             self._display.width,
