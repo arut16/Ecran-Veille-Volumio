@@ -10,6 +10,7 @@ from .config import Config
 LOGGER = logging.getLogger(__name__)
 
 FONT_EXTENSIONS = {".otf", ".ttf"}
+FONTS_DIR_NAME = "fonts"
 MIN_COLOR_COMPONENT = 96
 MIN_COLOR_LUMINANCE = 150
 REFERENCE_CLOCK_TEXT = "88:88"
@@ -21,9 +22,13 @@ MAX_AUTO_FONT_SIZE = 180
 
 
 def bundled_font_paths() -> list[Path]:
+    fonts_dir = Path(__file__).resolve().parent / FONTS_DIR_NAME
+    if not fonts_dir.is_dir():
+        return []
+
     return sorted(
         path
-        for path in Path(__file__).resolve().parent.iterdir()
+        for path in fonts_dir.iterdir()
         if path.is_file() and path.suffix.lower() in FONT_EXTENSIONS
     )
 
@@ -70,6 +75,8 @@ class ClockDisplay:
         )
         self._disp.begin()
         self._font = self._load_fitted_font(self._selected_font_path)
+        if self._selected_font_path:
+            LOGGER.info("Clock font selected: %s", self._selected_font_path.name)
         # Do not clear the display at service startup. Volumio/Pirate Audio may
         # already be using the ST7789 screen, and the screen saver should only
         # take over once the idle delay has elapsed.
@@ -87,6 +94,7 @@ class ClockDisplay:
         if self._font_paths:
             self._selected_font_path = generator.choice(self._font_paths)
             self._font = self._load_fitted_font(self._selected_font_path)
+            LOGGER.info("Clock font selected: %s", self._selected_font_path.name)
         self._font_color = random_visible_color(generator)
 
     def measure(self, text: str) -> tuple[int, int]:
