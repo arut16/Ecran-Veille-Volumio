@@ -12,6 +12,12 @@ LOGGER = logging.getLogger(__name__)
 FONT_EXTENSIONS = {".otf", ".ttf"}
 MIN_COLOR_COMPONENT = 96
 MIN_COLOR_LUMINANCE = 150
+REFERENCE_CLOCK_TEXT = "88:88"
+REFERENCE_HOUR_TEXT = "88"
+REFERENCE_COLON_TEXT = ":"
+FONT_FIT_PADDING = 16
+MIN_AUTO_FONT_SIZE = 12
+MAX_AUTO_FONT_SIZE = 180
 
 
 def bundled_font_paths() -> list[Path]:
@@ -45,7 +51,7 @@ class ClockDisplay:
         self._width = config.display_width
         self._height = config.display_height
         self._blank_turns_backlight_off = config.blank_turns_backlight_off
-        self._font_size = config.font_size
+        self._configured_font_size = config.font_size
         self._font_paths = self._discover_font_paths(config.font_path)
         self._font_color = (255, 255, 255)
 
@@ -62,9 +68,8 @@ class ClockDisplay:
             offset_top=config.display_offset_top,
         )
         self._disp.begin()
-        self._font = self._load_font(
+        self._font = self._load_fitted_font(
             self._font_paths[0] if self._font_paths else None,
-            config.font_size,
         )
         # Do not clear the display at service startup. Volumio/Pirate Audio may
         # already be using the ST7789 screen, and the screen saver should only
@@ -82,22 +87,37 @@ class ClockDisplay:
         generator = rng or random
         if self._font_paths:
             font_path = generator.choice(self._font_paths)
-            self._font = self._load_font(font_path, self._font_size)
+            self._font = self._load_fitted_font(font_path)
             LOGGER.debug("Clock font selected: %s", font_path)
         self._font_color = random_visible_color(generator)
 
     def measure(self, text: str) -> tuple[int, int]:
         image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
         draw = self._draw_cls.Draw(image)
-        return self._text_size(draw, text)
+        return self._text_size(draw, REFERENCE_CLOCK_TEXT)
 
     def show_clock(self, text: str, position: tuple[int, int]) -> None:
         image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
         draw = self._draw_cls.Draw(image)
-        bbox = draw.textbbox((0, 0), text, font=self._font)
+
+        # Keep the clock layout stable while the colon blinks: hours, colon and
+        # minutes are drawn in fixed slots based on "88:88". When the colon is
+        # hidden, the minutes keep the same x position instead of sliding left.
+        bbox = draw.textbbox((0, 0), REFERENCE_CLOCK_TEXT, font=self._font)
         x = position[0] - bbox[0]
         y = position[1] - bbox[1]
-        draw.text((x, y), text, font=self._font, fill=self._font_color)
+        hour_slot_width = self._text_length(draw, REFERENCE_HOUR_TEXT)
+        colon_slot_width = self._text_length(draw, REFERENCE_COLON_TEXT)
+
+        hours = text[:2]
+        separator = text[2:3]
+        minutes = text[3:]
+
+        draw.text((x, y), hours, font=self._font, fill=self._font_color)
+        if separator == ":":
+            draw.text((x + hour_slot_width, y), REFERENCE_COLON_TEXT, font=self._font, fill=self._font_color)
+        draw.text((x + hour_slot_width + colon_slot_width, y), minutes, font=self._font, fill=self._font_color)
+
         self._disp.display(image)
         self._set_backlight(True)
 
@@ -139,6 +159,41 @@ class ClockDisplay:
         LOGGER.warning("No configured TTF/OTF font found, using PIL default font")
         return self._font_cls.load_default()
 
+    def _load_fitted_font(self, path: Path | None):
+        max_width = max(1, self._width - FONT_FIT_PADDING)
+        max_height = max(1, self._height - FONT_FIT_PADDING)
+        lower = MIN_AUTO_FONT_SIZE
+        upper = max(MAX_AUTO_FONT_SIZE, self._configured_font_size)
+        best_font = self._load_font(path, self._configured_font_size)
+        best_size = self._configured_font_size
+
+        while lower <= upper:
+            size = (lower + upper) // 2
+            font = self._load_font(path, size)
+            width, height = self._font_text_size(font, REFERENCE_CLOCK_TEXT)
+            if width <= max_width and height <= max_height:
+                best_font = font
+                best_size = size
+                lower = size + 1
+            else:
+                upper = size - 1
+
+        LOGGER.debug("Fitted font %s at size %d", path, best_size)
+        return best_font
+
+    def _font_text_size(self, font: Any, text: str) -> tuple[int, int]:
+        image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
+        draw = self._draw_cls.Draw(image)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
     def _text_size(self, draw: Any, text: str) -> tuple[int, int]:
         bbox = draw.textbbox((0, 0), text, font=self._font)
         return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    def _text_length(self, draw: Any, text: str) -> int:
+        try:
+            return int(round(draw.textlength(text, font=self._font)))
+        except AttributeError:
+            width, _height = self._text_size(draw, text)
+            return width
