@@ -19,6 +19,8 @@ REFERENCE_COLON_TEXT = ":"
 FONT_FIT_PADDING = 16
 MIN_AUTO_FONT_SIZE = 12
 MAX_AUTO_FONT_SIZE = 180
+PLAY_ICON_POINTS = ((8, 8), (8, 24), (22, 16))
+PLAY_ICON_COLOR = (255, 255, 255)
 
 
 def bundled_font_paths() -> list[Path]:
@@ -106,6 +108,8 @@ class ClockDisplay:
         image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
         draw = self._draw_cls.Draw(image)
 
+        self._draw_play_hint(draw)
+
         # Keep the clock layout stable while the colon blinks: hours, colon and
         # minutes are drawn in fixed slots based on "88:88". When the colon is
         # hidden, the minutes keep the same x position instead of sliding left.
@@ -141,6 +145,9 @@ class ClockDisplay:
             self._disp.set_backlight(on)
         except AttributeError:
             LOGGER.debug("ST7789 library does not expose set_backlight")
+
+    def _draw_play_hint(self, draw: Any) -> None:
+        draw.polygon(PLAY_ICON_POINTS, fill=PLAY_ICON_COLOR)
 
     def _discover_font_paths(self, configured_path: str) -> list[Path]:
         bundled_fonts = bundled_font_paths()
