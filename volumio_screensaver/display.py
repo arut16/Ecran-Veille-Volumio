@@ -11,8 +11,6 @@ LOGGER = logging.getLogger(__name__)
 FONT_EXTENSIONS = {".otf", ".ttf"}
 MIN_COLOR_COMPONENT = 96
 MIN_COLOR_LUMINANCE = 150
-FONT_FIT_MARGIN = 16
-CLOCK_SAMPLE_TEXT = "88:88"
 
 
 def bundled_font_paths() -> list[Path]:
@@ -63,8 +61,9 @@ class ClockDisplay:
             offset_top=config.display_offset_top,
         )
         self._disp.begin()
-        self._font = self._load_fitted_font(
+        self._font = self._load_font(
             self._font_paths[0] if self._font_paths else None,
+            config.font_size,
         )
         # Do not clear the display at service startup. Volumio/Pirate Audio may
         # already be using the ST7789 screen, and the screen saver should only
@@ -82,7 +81,7 @@ class ClockDisplay:
         generator = rng or random
         if self._font_paths:
             font_path = generator.choice(self._font_paths)
-            self._font = self._load_fitted_font(font_path)
+            self._font = self._load_font(font_path, self._font_size)
             LOGGER.debug("Clock font selected: %s", font_path)
         self._font_color = random_visible_color(generator)
 
@@ -94,14 +93,10 @@ class ClockDisplay:
     def show_clock(self, text: str, position: tuple[int, int]) -> None:
         image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
         draw = self._draw_cls.Draw(image)
-        x, y = self._draw_origin(draw, position)
-        for segment_text, segment_position in self._clock_segments(draw, text, x, y):
-            draw.text(
-                segment_position,
-                segment_text,
-                font=self._font,
-                fill=self._font_color,
-            )
+        bbox = draw.textbbox((0, 0), text, font=self._font)
+        x = position[0] - bbox[0]
+        y = position[1] - bbox[1]
+        draw.text((x, y), text, font=self._font, fill=self._font_color)
         self._disp.display(image)
         self._set_backlight(True)
 
@@ -133,53 +128,9 @@ class ClockDisplay:
         ]
         return [path for path in candidates if path and path.exists()]
 
-    def _load_fitted_font(self, path: Path | None):
-        if not path or not path.exists():
-            LOGGER.warning("No configured TTF/OTF font found, using PIL default font")
-            return self._font_cls.load_default()
+    def _load_font(self, path: Path | None, size: int):
+        if path and path.exists():
+            return self._font_cls.truetype(str(path), size)
 
-        max_width = max(1, self._width - FONT_FIT_MARGIN)
-        max_height = max(1, self._height - FONT_FIT_MARGIN)
-        best_size = self._font_size
-        low = 1
-        high = max(self._font_size * 3, self._font_size + 1)
-        probe_image = self._image_cls.new(
-            "RGB",
-            (self._width, self._height),
-            color=(0, 0, 0),
-        )
-        probe_draw = self._draw_cls.Draw(probe_image)
-
-        while low <= high:
-            size = (low + high) // 2
-            font = self._font_cls.truetype(str(path), size)
-            width, height = self._text_size(probe_draw, CLOCK_SAMPLE_TEXT, font)
-            if width <= max_width and height <= max_height:
-                best_size = size
-                low = size + 1
-            else:
-                high = size - 1
-
-        return self._font_cls.truetype(str(path), best_size)
-
-    def _clock_segments(self, draw, text: str, x: int, y: int):
-        hours = text[:2]
-        minutes = text[-2:]
-        hours_width, _ = self._text_size(draw, "88")
-        colon_width, _ = self._text_size(draw, ":")
-
-        segments = [
-            (hours, (x, y)),
-            (minutes, (x + hours_width + colon_width, y)),
-        ]
-        if ":" in text:
-            segments.insert(1, (":", (x + hours_width, y)))
-        return segments
-
-    def _draw_origin(self, draw, position: tuple[int, int]) -> tuple[int, int]:
-        bbox = draw.textbbox((0, 0), CLOCK_SAMPLE_TEXT, font=self._font)
-        return position[0] - bbox[0], position[1] - bbox[1]
-
-    def _text_size(self, draw, text: str, font=None) -> tuple[int, int]:
-        bbox = draw.textbbox((0, 0), text, font=font or self._font)
-        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+        LOGGER.warning("No configured TTF/OTF font found, using PIL default font")
+        return self._font_cls.load_default()
