@@ -23,6 +23,11 @@ def _env_bool(name: str, default: bool) -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+def _env_csv(name: str, default: str = "") -> list[str]:
+    value = _env(name, default)
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
 def parse_pins(value: str, *, allow_empty: bool = False) -> list[int]:
     pins = [int(part.strip()) for part in value.split(",") if part.strip()]
     if not pins and not allow_empty:
@@ -51,6 +56,7 @@ class Config:
     display_offset_top: int
     font_size: int
     font_path: str
+    excluded_font_names: list[str]
     screen_padding: int
     blank_turns_backlight_off: bool
     log_level: str
@@ -79,6 +85,10 @@ class Config:
             font_path=_env(
                 "FONT_PATH",
                 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+            ),
+            excluded_font_names=_env_csv(
+                "EXCLUDED_FONT_NAMES",
+                "Blue Screen Personal Use.ttf",
             ),
             screen_padding=_env_int("SCREEN_PADDING", 8),
             blank_turns_backlight_off=_env_bool("BLANK_TURNS_BACKLIGHT_OFF", True),
