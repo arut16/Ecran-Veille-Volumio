@@ -88,8 +88,7 @@ class ClockDisplay:
     def measure(self, text: str) -> tuple[int, int]:
         image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
         draw = self._draw_cls.Draw(image)
-        bbox = draw.textbbox((0, 0), text, font=self._font)
-        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+        return self._text_size(draw, text)
 
     def show_clock(self, text: str, position: tuple[int, int]) -> None:
         image = self._image_cls.new("RGB", (self._width, self._height), color=(0, 0, 0))
