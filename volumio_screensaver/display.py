@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import random
 from pathlib import Path
+from typing import Any
 
 from .config import Config
 
@@ -130,7 +131,14 @@ class ClockDisplay:
 
     def _load_font(self, path: Path | None, size: int):
         if path and path.exists():
-            return self._font_cls.truetype(str(path), size)
+            try:
+                return self._font_cls.truetype(str(path), size)
+            except OSError as exc:
+                LOGGER.warning("Could not load font %s: %s", path, exc)
 
         LOGGER.warning("No configured TTF/OTF font found, using PIL default font")
         return self._font_cls.load_default()
+
+    def _text_size(self, draw: Any, text: str) -> tuple[int, int]:
+        bbox = draw.textbbox((0, 0), text, font=self._font)
+        return bbox[2] - bbox[0], bbox[3] - bbox[1]
