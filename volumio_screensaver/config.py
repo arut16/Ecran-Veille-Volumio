@@ -23,9 +23,9 @@ def _env_bool(name: str, default: bool) -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
-def parse_pins(value: str) -> list[int]:
+def parse_pins(value: str, *, allow_empty: bool = False) -> list[int]:
     pins = [int(part.strip()) for part in value.split(",") if part.strip()]
-    if not pins:
+    if not pins and not allow_empty:
         raise ValueError("At least one button pin is required")
     return pins
 
@@ -36,6 +36,7 @@ class Config:
     poll_seconds: float
     http_timeout_seconds: float
     idle_delay_seconds: float
+    buttons_enabled: bool
     button_pins: list[int]
     button_bounce_ms: int
     display_width: int
@@ -61,7 +62,8 @@ class Config:
             poll_seconds=_env_float("POLL_SECONDS", 2.0),
             http_timeout_seconds=_env_float("HTTP_TIMEOUT_SECONDS", 1.5),
             idle_delay_seconds=_env_float("IDLE_DELAY_SECONDS", 300.0),
-            button_pins=parse_pins(_env("BUTTON_PINS", "5,6,16,24")),
+            buttons_enabled=_env_bool("BUTTONS_ENABLED", False),
+            button_pins=parse_pins(_env("BUTTON_PINS", "5,6,16,24"), allow_empty=True),
             button_bounce_ms=_env_int("BUTTON_BOUNCE_MS", 100),
             display_width=_env_int("DISPLAY_WIDTH", 240),
             display_height=_env_int("DISPLAY_HEIGHT", 240),
