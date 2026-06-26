@@ -52,7 +52,6 @@ class ClockDisplay:
         self._height = config.display_height
         self._blank_turns_backlight_off = config.blank_turns_backlight_off
         self._configured_font_size = config.font_size
-        self._excluded_font_names = {name.lower() for name in config.excluded_font_names}
         self._font_paths = self._discover_font_paths(config.font_path)
         self._font_color = (255, 255, 255)
         self._selected_font_path: Path | None = self._font_paths[0] if self._font_paths else None
@@ -71,8 +70,6 @@ class ClockDisplay:
         )
         self._disp.begin()
         self._font = self._load_fitted_font(self._selected_font_path)
-        if self._selected_font_path:
-            LOGGER.info("Clock font selected: %s", self._selected_font_path.name)
         # Do not clear the display at service startup. Volumio/Pirate Audio may
         # already be using the ST7789 screen, and the screen saver should only
         # take over once the idle delay has elapsed.
@@ -90,7 +87,6 @@ class ClockDisplay:
         if self._font_paths:
             self._selected_font_path = generator.choice(self._font_paths)
             self._font = self._load_fitted_font(self._selected_font_path)
-            LOGGER.info("Clock font selected: %s", self._selected_font_path.name)
         self._font_color = random_visible_color(generator)
 
     def measure(self, text: str) -> tuple[int, int]:
@@ -139,7 +135,7 @@ class ClockDisplay:
             LOGGER.debug("ST7789 library does not expose set_backlight")
 
     def _discover_font_paths(self, configured_path: str) -> list[Path]:
-        bundled_fonts = self._filter_font_paths(bundled_font_paths())
+        bundled_fonts = bundled_font_paths()
         if bundled_fonts:
             LOGGER.info("Loaded %d bundled clock fonts", len(bundled_fonts))
             return bundled_fonts
@@ -149,16 +145,7 @@ class ClockDisplay:
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"),
         ]
-        return self._filter_font_paths([path for path in candidates if path and path.exists()])
-
-    def _filter_font_paths(self, paths: list[Path]) -> list[Path]:
-        kept: list[Path] = []
-        for path in paths:
-            if path.name.lower() in self._excluded_font_names:
-                LOGGER.info("Clock font excluded: %s", path.name)
-                continue
-            kept.append(path)
-        return kept
+        return [path for path in candidates if path and path.exists()]
 
     def _load_font(self, path: Path | None, size: int):
         if path and path.exists():
