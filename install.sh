@@ -64,7 +64,8 @@ if [[ ! -f "${ENV_FILE}" ]]; then
 fi
 
 systemctl daemon-reload
-systemctl enable --now "${APP_NAME}.service"
+systemctl enable "${APP_NAME}.service"
+systemctl restart "${APP_NAME}.service"
 
 echo
 echo "Installation terminee."
