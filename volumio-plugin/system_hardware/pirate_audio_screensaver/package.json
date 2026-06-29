@@ -1,0 +1,33 @@
+{
+  "name": "pirate_audio_screensaver",
+  "version": "0.1.0",
+  "description": "Clock screensaver for Volumio on Pimoroni Pirate Audio ST7789 displays",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No automated tests configured\" && exit 0"
+  },
+  "author": "arut16",
+  "license": "MIT",
+  "repository": "https://github.com/arut16/Ecran-Veille-Volumio",
+  "volumio_info": {
+    "prettyName": "Pirate Audio Screensaver",
+    "icon": "fa-clock-o",
+    "plugin_type": "system_hardware",
+    "architectures": [
+      "armhf"
+    ],
+    "os": [
+      "buster"
+    ],
+    "details": "Displays a moving clock screensaver on Pimoroni Pirate Audio ST7789 screens when Volumio is idle.",
+    "changelog": "Initial Volumio plugin wrapper"
+  },
+  "engines": {
+    "node": ">=8",
+    "volumio": ">=3"
+  },
+  "dependencies": {
+    "kew": "^0.7.0",
+    "v-conf": "^1.4.0"
+  }
+}
