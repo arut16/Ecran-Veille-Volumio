@@ -1,7 +1,6 @@
 'use strict';
 
 var libQ = require('kew');
-var fs = require('fs');
 var exec = require('child_process').exec;
 var vConf = require('v-conf');
 
@@ -13,11 +12,21 @@ function PirateAudioScreensaver(context) {
   this.logger = context.logger;
   this.configManager = context.configManager;
   this.config = new vConf();
+  this.defaults = {
+    idle_delay_seconds: 300,
+    font_size: 58,
+    display_rotation: 90,
+    blank_turns_backlight_off: true,
+    buttons_enabled: false,
+    button_pins: '5,6,16,24',
+    log_level: 'INFO'
+  };
 }
 
 PirateAudioScreensaver.prototype.onVolumioStart = function () {
   var configFile = this.commandRouter.pluginManager.getConfigurationFile(this.context, 'config.json');
   this.config.loadFile(configFile);
+  this.ensureDefaultSettings();
   return libQ.resolve();
 };
 
@@ -25,6 +34,7 @@ PirateAudioScreensaver.prototype.onStart = function () {
   var defer = libQ.defer();
   var self = this;
 
+  self.ensureDefaultSettings();
   self.writeEnvironmentFile()
     .then(function () {
       return self.runCommand('sudo systemctl daemon-reload');
@@ -69,6 +79,7 @@ PirateAudioScreensaver.prototype.onStop = function () {
 
 PirateAudioScreensaver.prototype.onRestart = function () {
   var self = this;
+  self.ensureDefaultSettings();
   return self.writeEnvironmentFile()
     .then(function () {
       return self.runCommand('sudo systemctl restart volumio-screensaver.service');
@@ -80,19 +91,20 @@ PirateAudioScreensaver.prototype.getUIConfig = function () {
   var self = this;
   var langCode = this.commandRouter.sharedVars.get('language_code');
 
+  self.ensureDefaultSettings();
   self.commandRouter.i18nJson(
     __dirname + '/i18n/strings_' + langCode + '.json',
     __dirname + '/i18n/strings_en.json',
     __dirname + '/UIConfig.json'
   )
     .then(function (uiconf) {
-      self.setUIValue(uiconf, 'idle_delay_seconds', self.config.get('idle_delay_seconds'));
-      self.setUIValue(uiconf, 'font_size', self.config.get('font_size'));
-      self.setUIValue(uiconf, 'display_rotation', self.config.get('display_rotation'));
-      self.setUIValue(uiconf, 'blank_turns_backlight_off', self.config.get('blank_turns_backlight_off'));
-      self.setUIValue(uiconf, 'buttons_enabled', self.config.get('buttons_enabled'));
-      self.setUIValue(uiconf, 'button_pins', self.config.get('button_pins'));
-      self.setUIValue(uiconf, 'log_level', self.config.get('log_level'));
+      self.setUIValue(uiconf, 'idle_delay_seconds', self.getSetting('idle_delay_seconds'));
+      self.setUIValue(uiconf, 'font_size', self.getSetting('font_size'));
+      self.setUIValue(uiconf, 'display_rotation', self.getSetting('display_rotation'));
+      self.setUIValue(uiconf, 'blank_turns_backlight_off', self.getSetting('blank_turns_backlight_off'));
+      self.setUIValue(uiconf, 'buttons_enabled', self.getSetting('buttons_enabled'));
+      self.setUIValue(uiconf, 'button_pins', self.getSetting('button_pins'));
+      self.setUIValue(uiconf, 'log_level', self.getSetting('log_level'));
       defer.resolve(uiconf);
     })
     .fail(function (error) {
@@ -107,13 +119,13 @@ PirateAudioScreensaver.prototype.saveSettings = function (data) {
   var defer = libQ.defer();
   var self = this;
 
-  self.config.set('idle_delay_seconds', self.getFieldValue(data, 'idle_delay_seconds', 300));
-  self.config.set('font_size', self.getFieldValue(data, 'font_size', 58));
-  self.config.set('display_rotation', self.getFieldValue(data, 'display_rotation', 90));
-  self.config.set('blank_turns_backlight_off', self.getFieldValue(data, 'blank_turns_backlight_off', true));
-  self.config.set('buttons_enabled', self.getFieldValue(data, 'buttons_enabled', false));
-  self.config.set('button_pins', self.getFieldValue(data, 'button_pins', '5,6,16,24'));
-  self.config.set('log_level', self.getFieldValue(data, 'log_level', 'INFO'));
+  self.config.set('idle_delay_seconds', self.asNumber(self.getFieldValue(data, 'idle_delay_seconds', self.defaults.idle_delay_seconds), self.defaults.idle_delay_seconds));
+  self.config.set('font_size', self.asNumber(self.getFieldValue(data, 'font_size', self.defaults.font_size), self.defaults.font_size));
+  self.config.set('display_rotation', self.asNumber(self.getFieldValue(data, 'display_rotation', self.defaults.display_rotation), self.defaults.display_rotation));
+  self.config.set('blank_turns_backlight_off', self.asBoolean(self.getFieldValue(data, 'blank_turns_backlight_off', self.defaults.blank_turns_backlight_off), self.defaults.blank_turns_backlight_off));
+  self.config.set('buttons_enabled', self.asBoolean(self.getFieldValue(data, 'buttons_enabled', self.defaults.buttons_enabled), self.defaults.buttons_enabled));
+  self.config.set('button_pins', self.asString(self.getFieldValue(data, 'button_pins', self.defaults.button_pins), self.defaults.button_pins));
+  self.config.set('log_level', self.asString(self.getFieldValue(data, 'log_level', self.defaults.log_level), self.defaults.log_level));
 
   self.writeEnvironmentFile()
     .then(function () {
@@ -133,19 +145,20 @@ PirateAudioScreensaver.prototype.saveSettings = function (data) {
 };
 
 PirateAudioScreensaver.prototype.writeEnvironmentFile = function () {
+  this.ensureDefaultSettings();
   var content = [
     'VOLUMIO_URL=http://127.0.0.1:3000',
     'POLL_SECONDS=2.0',
     'HTTP_TIMEOUT_SECONDS=1.5',
-    'IDLE_DELAY_SECONDS=' + this.config.get('idle_delay_seconds'),
+    'IDLE_DELAY_SECONDS=' + this.asNumber(this.getSetting('idle_delay_seconds'), this.defaults.idle_delay_seconds),
     '',
-    'BUTTONS_ENABLED=' + this.booleanToEnv(this.config.get('buttons_enabled')),
-    'BUTTON_PINS=' + this.config.get('button_pins'),
+    'BUTTONS_ENABLED=' + this.booleanToEnv(this.asBoolean(this.getSetting('buttons_enabled'), this.defaults.buttons_enabled)),
+    'BUTTON_PINS=' + this.asString(this.getSetting('button_pins'), this.defaults.button_pins),
     'BUTTON_BOUNCE_MS=100',
     '',
     'DISPLAY_WIDTH=240',
     'DISPLAY_HEIGHT=240',
-    'DISPLAY_ROTATION=' + this.config.get('display_rotation'),
+    'DISPLAY_ROTATION=' + this.asNumber(this.getSetting('display_rotation'), this.defaults.display_rotation),
     'DISPLAY_PORT=0',
     'DISPLAY_CS=1',
     'DISPLAY_DC=9',
@@ -154,11 +167,11 @@ PirateAudioScreensaver.prototype.writeEnvironmentFile = function () {
     'DISPLAY_OFFSET_LEFT=0',
     'DISPLAY_OFFSET_TOP=0',
     '',
-    'FONT_SIZE=' + this.config.get('font_size'),
+    'FONT_SIZE=' + this.asNumber(this.getSetting('font_size'), this.defaults.font_size),
     'FONT_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf',
     'SCREEN_PADDING=8',
-    'BLANK_TURNS_BACKLIGHT_OFF=' + this.booleanToEnv(this.config.get('blank_turns_backlight_off')),
-    'LOG_LEVEL=' + this.config.get('log_level'),
+    'BLANK_TURNS_BACKLIGHT_OFF=' + this.booleanToEnv(this.asBoolean(this.getSetting('blank_turns_backlight_off'), this.defaults.blank_turns_backlight_off)),
+    'LOG_LEVEL=' + this.asString(this.getSetting('log_level'), this.defaults.log_level),
     ''
   ].join('\n');
 
@@ -191,6 +204,24 @@ PirateAudioScreensaver.prototype.runCommand = function (command) {
   return defer.promise;
 };
 
+PirateAudioScreensaver.prototype.ensureDefaultSettings = function () {
+  for (var key in this.defaults) {
+    if (Object.prototype.hasOwnProperty.call(this.defaults, key)) {
+      if (this.isUnset(this.config.get(key))) {
+        this.config.set(key, this.defaults[key]);
+      }
+    }
+  }
+};
+
+PirateAudioScreensaver.prototype.getSetting = function (key) {
+  var value = this.config.get(key);
+  if (this.isUnset(value)) {
+    return this.defaults[key];
+  }
+  return value;
+};
+
 PirateAudioScreensaver.prototype.getFieldValue = function (data, key, defaultValue) {
   if (!data || typeof data[key] === 'undefined') {
     return defaultValue;
@@ -199,6 +230,38 @@ PirateAudioScreensaver.prototype.getFieldValue = function (data, key, defaultVal
     return data[key].value;
   }
   return data[key];
+};
+
+PirateAudioScreensaver.prototype.isUnset = function (value) {
+  return typeof value === 'undefined' || value === null || value === '' || value === 'undefined';
+};
+
+PirateAudioScreensaver.prototype.asNumber = function (value, defaultValue) {
+  if (this.isUnset(value)) {
+    return defaultValue;
+  }
+  var parsed = Number(value);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
+
+PirateAudioScreensaver.prototype.asString = function (value, defaultValue) {
+  if (this.isUnset(value)) {
+    return defaultValue;
+  }
+  return String(value);
+};
+
+PirateAudioScreensaver.prototype.asBoolean = function (value, defaultValue) {
+  if (this.isUnset(value)) {
+    return defaultValue;
+  }
+  if (value === true || value === 'true' || value === 'on' || value === 1 || value === '1') {
+    return true;
+  }
+  if (value === false || value === 'false' || value === 'off' || value === 0 || value === '0') {
+    return false;
+  }
+  return defaultValue;
 };
 
 PirateAudioScreensaver.prototype.booleanToEnv = function (value) {
