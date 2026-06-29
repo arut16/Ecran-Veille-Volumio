@@ -8,10 +8,6 @@
       "element": "section",
       "label": "Settings",
       "icon": "fa-clock-o",
-      "onSave": {
-        "type": "controller",
-        "endpoint": "saveSettings"
-      },
       "content": [
         {
           "id": "idle_delay_seconds",
@@ -37,6 +33,15 @@
             { "value": 270, "label": "270" }
           ],
           "value": { "value": 90, "label": "90" }
+        },
+        {
+          "id": "save_settings",
+          "element": "button",
+          "label": "Save",
+          "onClick": {
+            "type": "controller",
+            "endpoint": "saveSettings"
+          }
         }
       ]
     }
