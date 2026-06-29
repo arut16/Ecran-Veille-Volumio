@@ -98,13 +98,8 @@ PirateAudioScreensaver.prototype.getUIConfig = function () {
     __dirname + '/UIConfig.json'
   )
     .then(function (uiconf) {
-      self.setUIValue(uiconf, 'idle_delay_seconds', self.getSetting('idle_delay_seconds'));
-      self.setUIValue(uiconf, 'font_size', self.getSetting('font_size'));
-      self.setUIValue(uiconf, 'display_rotation', self.getSetting('display_rotation'));
-      self.setUIValue(uiconf, 'blank_turns_backlight_off', self.getSetting('blank_turns_backlight_off'));
-      self.setUIValue(uiconf, 'buttons_enabled', self.getSetting('buttons_enabled'));
-      self.setUIValue(uiconf, 'button_pins', self.getSetting('button_pins'));
-      self.setUIValue(uiconf, 'log_level', self.getSetting('log_level'));
+      self.setUIValue(uiconf, 'idle_delay_seconds', self.asNumber(self.getSetting('idle_delay_seconds'), self.defaults.idle_delay_seconds));
+      self.setUIValue(uiconf, 'display_rotation', self.asNumber(self.getSetting('display_rotation'), self.defaults.display_rotation));
       defer.resolve(uiconf);
     })
     .fail(function (error) {
@@ -120,12 +115,12 @@ PirateAudioScreensaver.prototype.saveSettings = function (data) {
   var self = this;
 
   self.config.set('idle_delay_seconds', self.asNumber(self.getFieldValue(data, 'idle_delay_seconds', self.defaults.idle_delay_seconds), self.defaults.idle_delay_seconds));
-  self.config.set('font_size', self.asNumber(self.getFieldValue(data, 'font_size', self.defaults.font_size), self.defaults.font_size));
+  self.config.set('font_size', self.defaults.font_size);
   self.config.set('display_rotation', self.asNumber(self.getFieldValue(data, 'display_rotation', self.defaults.display_rotation), self.defaults.display_rotation));
-  self.config.set('blank_turns_backlight_off', self.asBoolean(self.getFieldValue(data, 'blank_turns_backlight_off', self.defaults.blank_turns_backlight_off), self.defaults.blank_turns_backlight_off));
-  self.config.set('buttons_enabled', self.asBoolean(self.getFieldValue(data, 'buttons_enabled', self.defaults.buttons_enabled), self.defaults.buttons_enabled));
-  self.config.set('button_pins', self.asString(self.getFieldValue(data, 'button_pins', self.defaults.button_pins), self.defaults.button_pins));
-  self.config.set('log_level', self.asString(self.getFieldValue(data, 'log_level', self.defaults.log_level), self.defaults.log_level));
+  self.config.set('blank_turns_backlight_off', self.defaults.blank_turns_backlight_off);
+  self.config.set('buttons_enabled', self.defaults.buttons_enabled);
+  self.config.set('button_pins', self.defaults.button_pins);
+  self.config.set('log_level', self.defaults.log_level);
 
   self.writeEnvironmentFile()
     .then(function () {
@@ -279,8 +274,12 @@ PirateAudioScreensaver.prototype.setUIValue = function (uiconf, id, value) {
       continue;
     }
     for (var j = 0; j < section.content.length; j++) {
-      if (section.content[j].id === id && section.content[j].value) {
-        section.content[j].value.value = value;
+      if (section.content[j].id === id) {
+        if (section.content[j].element === 'select') {
+          section.content[j].value = { value: value, label: String(value) };
+        } else {
+          section.content[j].value = value;
+        }
         return;
       }
     }
