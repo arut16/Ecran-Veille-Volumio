@@ -1,0 +1,12 @@
+{
+  "PLUGIN_CONFIGURATION": "Pirate Audio Screensaver configuration",
+  "SETTINGS": "Settings",
+  "SAVE": "Save",
+  "IDLE_DELAY_SECONDS": "Idle delay before screensaver starts",
+  "FONT_SIZE": "Font size",
+  "DISPLAY_ROTATION": "Display rotation",
+  "BLANK_TURNS_BACKLIGHT_OFF": "Turn backlight off when blanked",
+  "BUTTONS_ENABLED": "Watch Pirate Audio buttons",
+  "BUTTON_PINS": "Button GPIO pins",
+  "LOG_LEVEL": "Log level"
+}
