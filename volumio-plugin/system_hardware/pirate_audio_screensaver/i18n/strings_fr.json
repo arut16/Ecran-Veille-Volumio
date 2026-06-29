@@ -1,0 +1,12 @@
+{
+  "PLUGIN_CONFIGURATION": "Configuration Pirate Audio Screensaver",
+  "SETTINGS": "Paramètres",
+  "SAVE": "Enregistrer",
+  "IDLE_DELAY_SECONDS": "Délai avant activation de l'écran de veille",
+  "FONT_SIZE": "Taille de police",
+  "DISPLAY_ROTATION": "Rotation de l'écran",
+  "BLANK_TURNS_BACKLIGHT_OFF": "Éteindre le rétroéclairage lorsque l'écran est vide",
+  "BUTTONS_ENABLED": "Surveiller les boutons Pirate Audio",
+  "BUTTON_PINS": "Broches GPIO des boutons",
+  "LOG_LEVEL": "Niveau de journalisation"
+}
