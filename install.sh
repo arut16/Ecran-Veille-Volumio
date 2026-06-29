@@ -91,7 +91,7 @@ then
   "${APP_DIR}/venv/bin/python" -m pip install --no-cache-dir --force-reinstall "${SOURCE_DIR}"
 else
   echo "Dependances Python deja installees, reinstall rapide du package seul."
-  "${APP_DIR}/venv/bin/python" -m pip install --no-cache-dir --force-reinstall --no-deps "${SOURCE_DIR}"
+  "${APP_DIR}/venv/bin/python" -m pip install --no-cache-dir --force-reinstall --no-build-isolation --no-deps "${SOURCE_DIR}"
 fi
 
 if [[ "${RPI_GPIO_FROM_PIP}" -eq 1 ]]; then
