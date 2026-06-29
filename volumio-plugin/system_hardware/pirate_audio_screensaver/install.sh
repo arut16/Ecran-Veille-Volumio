@@ -8,8 +8,25 @@ ENV_FILE="/etc/${APP_NAME}.env"
 REPO_URL="${REPO_URL:-https://github.com/arut16/Ecran-Veille-Volumio.git}"
 FAST_INSTALL="${FAST_INSTALL:-1}"
 
+runtime_already_installed() {
+  [[ -x "${APP_DIR}/venv/bin/volumio-screensaver" && -f "${SERVICE_FILE}" ]]
+}
+
 if [[ "${EUID}" -ne 0 ]]; then
-  exec sudo -E bash "$0" "$@"
+  if runtime_already_installed; then
+    echo "Runtime already installed. Skipping privileged setup for local Volumio plugin registration."
+    echo "plugininstallend"
+    exit 0
+  fi
+
+  if sudo -n true 2>/dev/null; then
+    exec sudo -E bash "$0" "$@"
+  fi
+
+  echo "This plugin needs privileged setup, but sudo is not available non-interactively."
+  echo "Run once manually from this directory: sudo bash install.sh"
+  echo "Then run again: volumio plugin install"
+  exit 1
 fi
 
 TMP_DIR=""
