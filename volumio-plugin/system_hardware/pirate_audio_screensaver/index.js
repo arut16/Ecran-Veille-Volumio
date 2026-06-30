@@ -2,6 +2,8 @@
 
 var libQ = require('kew');
 var exec = require('child_process').exec;
+var fs = require('fs');
+var path = require('path');
 var vConf = require('v-conf');
 
 module.exports = PirateAudioScreensaver;
@@ -12,6 +14,8 @@ function PirateAudioScreensaver(context) {
   this.logger = context.logger;
   this.configManager = context.configManager;
   this.config = new vConf();
+  this.persistDir = '/data/configuration/system_hardware/pirate_audio_screensaver';
+  this.persistFile = path.join(this.persistDir, 'settings.json');
   this.defaults = {
     idle_delay_seconds: 300,
     font_size: 58,
@@ -27,6 +31,7 @@ PirateAudioScreensaver.prototype.onVolumioStart = function () {
   var configFile = this.commandRouter.pluginManager.getConfigurationFile(this.context, 'config.json');
   this.config.loadFile(configFile);
   this.ensureDefaultSettings();
+  this.loadPersistedSettings();
   return libQ.resolve();
 };
 
@@ -35,6 +40,7 @@ PirateAudioScreensaver.prototype.onStart = function () {
   var self = this;
 
   self.ensureDefaultSettings();
+  self.loadPersistedSettings();
   self.writeEnvironmentFile()
     .then(function () {
       return self.runCommand('sudo systemctl daemon-reload');
@@ -80,6 +86,7 @@ PirateAudioScreensaver.prototype.onStop = function () {
 PirateAudioScreensaver.prototype.onRestart = function () {
   var self = this;
   self.ensureDefaultSettings();
+  self.loadPersistedSettings();
   return self.writeEnvironmentFile()
     .then(function () {
       return self.runCommand('sudo systemctl restart volumio-screensaver.service');
@@ -92,6 +99,7 @@ PirateAudioScreensaver.prototype.getUIConfig = function () {
   var langCode = this.commandRouter.sharedVars.get('language_code');
 
   self.ensureDefaultSettings();
+  self.loadPersistedSettings();
   self.commandRouter.i18nJson(
     __dirname + '/i18n/strings_' + langCode + '.json',
     __dirname + '/i18n/strings_en.json',
@@ -121,6 +129,7 @@ PirateAudioScreensaver.prototype.saveSettings = function (data) {
   self.config.set('buttons_enabled', self.defaults.buttons_enabled);
   self.config.set('button_pins', self.defaults.button_pins);
   self.config.set('log_level', self.defaults.log_level);
+  self.savePersistedSettings();
 
   self.writeEnvironmentFile()
     .then(function () {
@@ -141,6 +150,7 @@ PirateAudioScreensaver.prototype.saveSettings = function (data) {
 
 PirateAudioScreensaver.prototype.writeEnvironmentFile = function () {
   this.ensureDefaultSettings();
+  this.loadPersistedSettings();
   var content = [
     'VOLUMIO_URL=http://127.0.0.1:3000',
     'POLL_SECONDS=2.0',
@@ -206,6 +216,40 @@ PirateAudioScreensaver.prototype.ensureDefaultSettings = function () {
         this.config.set(key, this.defaults[key]);
       }
     }
+  }
+};
+
+PirateAudioScreensaver.prototype.loadPersistedSettings = function () {
+  var self = this;
+  try {
+    if (!fs.existsSync(self.persistFile)) {
+      return;
+    }
+    var persisted = JSON.parse(fs.readFileSync(self.persistFile, 'utf8'));
+    if (Object.prototype.hasOwnProperty.call(persisted, 'idle_delay_seconds')) {
+      self.config.set('idle_delay_seconds', self.asNumber(persisted.idle_delay_seconds, self.defaults.idle_delay_seconds));
+    }
+    if (Object.prototype.hasOwnProperty.call(persisted, 'display_rotation')) {
+      self.config.set('display_rotation', self.asNumber(persisted.display_rotation, self.defaults.display_rotation));
+    }
+  } catch (error) {
+    self.logger.warn('Cannot load persisted Pirate Audio Screensaver settings: ' + error);
+  }
+};
+
+PirateAudioScreensaver.prototype.savePersistedSettings = function () {
+  var self = this;
+  try {
+    if (!fs.existsSync(self.persistDir)) {
+      fs.mkdirSync(self.persistDir, { recursive: true });
+    }
+    var persisted = {
+      idle_delay_seconds: self.asNumber(self.config.get('idle_delay_seconds'), self.defaults.idle_delay_seconds),
+      display_rotation: self.asNumber(self.config.get('display_rotation'), self.defaults.display_rotation)
+    };
+    fs.writeFileSync(self.persistFile, JSON.stringify(persisted, null, 2));
+  } catch (error) {
+    self.logger.error('Cannot persist Pirate Audio Screensaver settings: ' + error);
   }
 };
 
